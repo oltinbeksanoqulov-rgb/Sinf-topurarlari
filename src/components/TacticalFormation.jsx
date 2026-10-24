@@ -23,11 +23,11 @@ export default function TacticalFormation() {
   const [isExporting, setIsExporting] = useState(false);
   const pitchContainerRef = useRef(null);
 
-  // Exact 1-2-3-2 lineup based on user specification
-  // Attack (2): Sanoqulov Oltinbek, Xoliyorov Ibrohim
-  // Midfield (3): Salaydinov Miraziz, Xusanov Ozodbek, Qahramonov Samariddin
-  // Defense (2): Xayrullayev Javohir, Eshmamatov Ibrohim
-  // Goalkeeper (1): Abdumannonov Ibrohim
+  // 1-3-3-2 tarkib (jami 9 nafar futbolchi):
+  // Hujum (2): Sanoqulov Oltinbek, Xoliyorov Ibrohim
+  // Yarim himoya (3): Salaydinov Miraziz, Xusanov Ozodbek, Qahramonov Samariddin
+  // Himoya (3): Xayrullayev Javohir, Misirov Umidjon, Eshmamatov Ibrohim
+  // Darvozabon (1): Abdumannonov Ibrohim
   const tacticalLineup = [
     // --- HUJUM (Attack) - 2 o'yinchi ---
     {
@@ -99,14 +99,14 @@ export default function TacticalFormation() {
       order: 5
     },
 
-    // --- HIMOYACHILAR (Defense) - 2 o'yinchi ---
+    // --- HIMOYACHILAR (Defense) - 3 o'yinchi ---
     {
       slotId: 'def_left',
       nameMatch: 'Xayrullayev Javohir',
       altNameMatch: 'Xayrullaryev Javohir',
       shortName: 'XAYRULLAYEV',
-      formationPos: 'CB',
-      posLabel: 'Chap markaziy himoya',
+      formationPos: 'LB',
+      posLabel: 'Chap qanot himoyasi',
       ovr: 127,
       rank: 30,
       gridRow: 'defense',
@@ -115,17 +115,31 @@ export default function TacticalFormation() {
       order: 6
     },
     {
+      slotId: 'def_center',
+      nameMatch: 'Misirov Umidjon',
+      altNameMatch: 'Misirov Umidjion',
+      shortName: 'MISIROV',
+      formationPos: 'CB',
+      posLabel: 'Markaziy himoya',
+      ovr: 126,
+      rank: 30,
+      gridRow: 'defense',
+      signature: false,
+      tacticalRole: 'Mudofaa markazi • Xavfni bartaraf etish',
+      order: 7
+    },
+    {
       slotId: 'def_right',
       nameMatch: 'Eshmamatov Ibrohim',
       shortName: 'ESHMAMATOV',
-      formationPos: 'CB',
-      posLabel: 'O‘ng markaziy himoya',
+      formationPos: 'RB',
+      posLabel: 'O‘ng qanot himoyasi',
       ovr: 127,
       rank: 30,
       gridRow: 'defense',
       signature: true,
       tacticalRole: 'Mudofaa tayanchi • To‘pni olib qo‘yish',
-      order: 7
+      order: 8
     },
 
     // --- DARVOZABON (Goalkeeper) - 1 o'yinchi ---
@@ -141,7 +155,7 @@ export default function TacticalFormation() {
       gridRow: 'gk',
       signature: false,
       tacticalRole: 'Darvoza daxlsizligi • Seyvlar',
-      order: 8
+      order: 9
     }
   ];
 

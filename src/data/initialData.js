@@ -20,7 +20,7 @@ export const INITIAL_PLAYERS = [
   {
     id: "p2",
     name: "Sanoqulov Oltinbek",
-    jerseyNumber: 9,
+    jerseyNumber: 7,
     position: "Hujumchi",
     className: "8-D sinf",
     goals: 0,
@@ -54,7 +54,7 @@ export const INITIAL_PLAYERS = [
   {
     id: "p3",
     name: "Xusanov Ozodbek",
-    jerseyNumber: 3,
+    jerseyNumber: 45,
     position: "Himoyachi",
     className: "8-D sinf",
     goals: 0,
@@ -105,7 +105,7 @@ export const INITIAL_PLAYERS = [
   {
     id: "p6",
     name: "Salaydinov Miraziz",
-    jerseyNumber: 7,
+    jerseyNumber: 9,
     position: "Hujumchi",
     className: "8-D sinf",
     goals: 0,
@@ -122,7 +122,7 @@ export const INITIAL_PLAYERS = [
   {
     id: "p7",
     name: "Xayrullayev Javohir",
-    jerseyNumber: 5,
+    jerseyNumber: 2,
     position: "Himoyachi",
     className: "8-D sinf",
     goals: 0,
@@ -152,6 +152,23 @@ export const INITIAL_PLAYERS = [
     yellowCards: 0,
     foot: "O‘ng",
     height: "175 sm"
+  },
+  {
+    id: "p9",
+    name: "Misirov Umidjon",
+    jerseyNumber: 3,
+    position: "Himoyachi",
+    className: "8-D sinf",
+    goals: 0,
+    assists: 0,
+    matches: 0,
+    season: "Bahor Kubogi 2025",
+    photoUrl: "/players/misirov-umidjon.jpg",
+    bio: "Ishonchli va tartibli himoyachi. Mudofaa chizig‘ida to‘pni olib qo‘yish va jamoaviy intizomda faol.",
+    mvpCount: 0,
+    yellowCards: 0,
+    foot: "O‘ng",
+    height: "176 sm"
   }
 ];
 
@@ -163,5 +180,6 @@ export const PRESET_AVATARS = [
   "/players/abdumannonov-ibrohim.jpg",
   "/players/salaydinov-miraziz.jpg",
   "/players/xayrullayev-javohir.jpg",
-  "/players/xolyorov-ibrohim.jpg"
+  "/players/xolyorov-ibrohim.jpg",
+  "/players/misirov-umidjon.jpg"
 ];

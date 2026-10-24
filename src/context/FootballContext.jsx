@@ -8,35 +8,45 @@ import {
 const FootballContext = createContext(null);
 
 const STORAGE_KEYS = {
-  PLAYERS: 'sinif_topurarlari_players_v19_mobile_opt',
-  TEAM_INFO: 'sinif_topurarlari_team_v19_mobile_opt',
-  AUTH: 'sinif_topurarlari_admin_session_v19'
+  PLAYERS: 'sinif_topurarlari_players_v20_9players',
+  TEAM_INFO: 'sinif_topurarlari_team_v20_9players',
+  AUTH: 'sinif_topurarlari_admin_session_v20'
 };
 
 export function FootballProvider({ children }) {
-  // Load initial players - ensure ALL 8 real students are loaded with Sanoqulov Oltinbek as top
+  // Load initial players - ensure ALL students (including Misirov Umidjon) are loaded
   const [players, setPlayers] = useState(() => {
     try {
-      const MIGRATION_KEY = 'sinif_v19_mobile_optimized_migrated';
-      if (!localStorage.getItem(MIGRATION_KEY)) {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('sinif_')) {
-            localStorage.removeItem(k);
-          }
-        });
-        localStorage.setItem(MIGRATION_KEY, 'true');
-        localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(INITIAL_PLAYERS));
-        localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(INITIAL_TEAM_INFO));
-        return INITIAL_PLAYERS;
-      }
+      const currentSaved = localStorage.getItem(STORAGE_KEYS.PLAYERS) || localStorage.getItem('sinif_topurarlari_players_v19_mobile_opt');
+      if (currentSaved) {
+        const parsed = JSON.parse(currentSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingIds = new Set(parsed.map(p => p.id));
+          const existingNames = new Set(parsed.map(p => p.name.toLowerCase().trim()));
+          
+          // Keep existing stats for existing players, but ensure photos/data are valid
+          const updatedExisting = parsed.map(p => {
+            const initialMatch = INITIAL_PLAYERS.find(ip => ip.id === p.id || ip.name.toLowerCase().trim() === p.name.toLowerCase().trim());
+            return {
+              ...p,
+              photoUrl: initialMatch?.photoUrl || p.photoUrl,
+              position: p.position || initialMatch?.position || "Himoyachi",
+              goals: Number(p.goals) || 0,
+              assists: Number(p.assists) || 0,
+              matches: Number(p.matches) || 0
+            };
+          });
 
-      const saved = localStorage.getItem(STORAGE_KEYS.PLAYERS);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length === 8) {
-          return parsed;
+          // Add any newly introduced initial players not yet in saved data (e.g. Misirov Umidjon)
+          const newlyAdded = INITIAL_PLAYERS.filter(ip => !existingIds.has(ip.id) && !existingNames.has(ip.name.toLowerCase().trim()));
+
+          const finalPlayers = [...updatedExisting, ...newlyAdded];
+          localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(finalPlayers));
+          return finalPlayers;
         }
       }
+
+      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(INITIAL_PLAYERS));
       return INITIAL_PLAYERS;
     } catch {
       return INITIAL_PLAYERS;
@@ -45,7 +55,7 @@ export function FootballProvider({ children }) {
 
   const [teamInfo, setTeamInfo] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TEAM_INFO);
+      const saved = localStorage.getItem(STORAGE_KEYS.TEAM_INFO) || localStorage.getItem('sinif_topurarlari_team_v19_mobile_opt');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.name) {
@@ -97,18 +107,79 @@ export function FootballProvider({ children }) {
     }, 3200);
   };
 
-  // Sync with localStorage
+  // Live multi-tab / multi-window synchronization (Admin panel <-> Oddiy panel)
+  useEffect(() => {
+    let channel;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('sinif_topurarlari_live_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'PLAYERS_UPDATED' && Array.isArray(event.data.players)) {
+            setPlayers(event.data.players);
+            if (event.data.updatedPlayerId) {
+              setLastUpdatedPlayerId(event.data.updatedPlayerId);
+              setTimeout(() => setLastUpdatedPlayerId(null), 1500);
+            }
+          }
+          if (event.data?.type === 'TEAM_UPDATED' && event.data.teamInfo) {
+            setTeamInfo(event.data.teamInfo);
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('BroadcastChannel not supported', e);
+    }
+
+    const handleStorage = (e) => {
+      if (e.key === STORAGE_KEYS.PLAYERS && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setPlayers(parsed);
+          }
+        } catch (err) {
+          console.error('Storage sync error:', err);
+        }
+      }
+      if (e.key === STORAGE_KEYS.TEAM_INFO && e.newValue) {
+        try {
+          setTeamInfo(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Team sync error:', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  // Sync with localStorage & notify other tabs
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('sinif_topurarlari_live_sync');
+        channel.postMessage({ type: 'PLAYERS_UPDATED', players, updatedPlayerId: lastUpdatedPlayerId });
+        channel.close();
+      }
     } catch (e) {
       console.error('LocalStorage error saving players:', e);
     }
-  }, [players]);
+  }, [players, lastUpdatedPlayerId]);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(teamInfo));
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('sinif_topurarlari_live_sync');
+        channel.postMessage({ type: 'TEAM_UPDATED', teamInfo });
+        channel.close();
+      }
     } catch (e) {
       console.error('LocalStorage error saving teamInfo:', e);
     }
@@ -162,6 +233,16 @@ export function FootballProvider({ children }) {
       })
     );
 
+    setSelectedPlayer(prev => {
+      if (prev && prev.id === playerId) {
+        return {
+          ...prev,
+          [field]: (Number(prev[field]) || 0) + amount
+        };
+      }
+      return prev;
+    });
+
     const player = players.find(p => p.id === playerId);
     const fieldNames = {
       goals: 'gol',
@@ -189,6 +270,16 @@ export function FootballProvider({ children }) {
         return p;
       })
     );
+
+    setSelectedPlayer(prev => {
+      if (prev && prev.id === playerId) {
+        return {
+          ...prev,
+          [field]: Math.max(0, (Number(prev[field]) || 0) - amount)
+        };
+      }
+      return prev;
+    });
 
     const player = players.find(p => p.id === playerId);
     showToast(`${player ? player.name : 'Futbolchi'}: -${amount} kamaytirildi`, 'info');

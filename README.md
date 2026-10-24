@@ -4,7 +4,7 @@
 
 ---
 
-## 👥 Jamoa Tarkibi (8 ta Asosiy Futbolchi)
+## 👥 Jamoa Tarkibi (9 ta Asosiy Futbolchi)
  
 1. **Sanoqulov Oltinbek** — Hujumchi *(Asosiy To‘purar va Assistent)*
 2. **Eshmamatov Ibrohim** — Himoyachi
@@ -14,8 +14,9 @@
 6. **Salaydinov Miraziz** — Hujumchi
 7. **Xayrullayev Javohir** — Himoyachi
 8. **Xolyorov Ibrohim** — Hujumchi
+9. **Misirov Umidjon** — Himoyachi
  
-*Barcha 8 ta futbolchining haqiqiy suratlari va amplualari saytga to‘liq joylashtirildi.*
+*Barcha 9 ta futbolchining haqiqiy suratlari va amplualari saytga to‘liq joylashtirildi.*
 
 ---
 
