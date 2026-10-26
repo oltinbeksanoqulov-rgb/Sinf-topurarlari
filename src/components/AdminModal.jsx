@@ -40,7 +40,9 @@ export default function AdminModal() {
     incrementStat,
     decrementStat,
     resetAllStatsToZero,
-    lastUpdatedPlayerId
+    lastUpdatedPlayerId,
+    cloudSyncStatus,
+    refreshFromCloud
   } = useFootball();
 
   const [activeTab, setActiveTab] = useState('live'); // 'live' | 'players' | 'team'
@@ -149,9 +151,21 @@ export default function AdminModal() {
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   ADMIN v2.0
                 </span>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center gap-1 ${
+                  cloudSyncStatus === 'syncing' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
+                  cloudSyncStatus === 'synced' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                  'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    cloudSyncStatus === 'syncing' ? 'bg-amber-400 animate-spin' :
+                    cloudSyncStatus === 'synced' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                  }`}></span>
+                  {cloudSyncStatus === 'syncing' ? 'Bulutga saqlanmoqda...' :
+                   cloudSyncStatus === 'synced' ? 'Jonli Bulut Ulangan' : 'Oflayn rejim'}
+                </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Jonli hisoblagich (+1 / -1), futbolchilar va jamoa sozlamalari
+                Jonli hisoblagich (+1 / -1), barcha o‘quvchilar telefonlariga bir zumda uzatiladi
               </p>
             </div>
           </div>
@@ -262,14 +276,14 @@ export default function AdminModal() {
               {/* TAB 1: LIVE COUNTER (+1 / -1) */}
               {activeTab === 'live' && (
                 <div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-emerald-900/20 to-slate-900/60 border border-emerald-500/40 shadow-lg">
                     <div>
                       <h4 className="text-sm sm:text-base font-black text-emerald-300 flex items-center gap-2">
                         <Zap className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-                        Har bir futbolchi uchun jonli +1 hisoblagich
+                        Har bir futbolchi uchun jonli +1 hisoblagich (Bulutli)
                       </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Ixtiyoriy o‘yinchining Goli, Assisti yoki O‘yinlar soni oldidagi <b>+1</b> tugmasini bosing — sayt reytingida darhol aks etadi!
+                      <p className="text-xs text-slate-300 mt-1">
+                        Ixtiyoriy o‘yinchining Goli, Assisti yoki O‘yini oldidagi <b>+1</b> tugmasini bosing — ma'lumotlar avtomatik tarzda <b>Markaziy Bulutga</b> saqlanadi va <b>barcha sinfdoshlaringizning telefonlarida</b> ham darhol aks etadi!
                       </p>
                     </div>
                   </div>

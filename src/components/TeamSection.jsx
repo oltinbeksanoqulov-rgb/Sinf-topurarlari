@@ -48,7 +48,7 @@ export default function TeamSection() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-sm font-bold transition-all shadow-md"
           >
             <Gamepad2 className="w-4 h-4 text-amber-400" />
-            <span>1-2-3-2 Sxema</span>
+            <span>1-3-3-2 Sxema</span>
           </button>
 
           <button

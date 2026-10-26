@@ -68,7 +68,7 @@ export default function PlayerDetailModal() {
             <div className="flex-1 text-center sm:text-left min-w-0">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-800/90 border border-slate-700 text-slate-200">
-                  {selectedPlayer.className || "10-A sinf"}
+                  {selectedPlayer.className || "8-D sinf"}
                 </span>
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">
                   {selectedPlayer.position}
@@ -91,7 +91,7 @@ export default function PlayerDetailModal() {
               </h2>
 
               <p className="text-sm text-slate-300 mt-3 leading-relaxed">
-                {selectedPlayer.bio || "10-A sinf futbol jamoasi a’zosi. Har bir uchrashuvda jamoa g‘alabasi uchun faol ishtirok etadi."}
+                {selectedPlayer.bio || "8-D sinf futbol jamoasi a’zosi. Har bir uchrashuvda jamoa g‘alabasi uchun faol ishtirok etadi."}
               </p>
 
               {/* Physical / Player Attributes */}

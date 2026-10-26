@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   INITIAL_PLAYERS,
   INITIAL_TEAM_INFO,
   INITIAL_SEASONS
 } from '../data/initialData';
+import { fetchCloudStats, saveCloudStats } from '../services/cloudDb';
 
 const FootballContext = createContext(null);
 
@@ -80,6 +81,9 @@ export function FootballProvider({ children }) {
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isDualPanelMode, setIsDualPanelMode] = useState(false); // Side-by-side Two Panels mode
   const [lastUpdatedPlayerId, setLastUpdatedPlayerId] = useState(null); // For pulse animation
+  const [cloudSyncStatus, setCloudSyncStatus] = useState('syncing'); // 'synced' | 'syncing' | 'offline'
+  const pendingSaveTimeoutRef = useRef(null);
+  const lastLocalEditTimeRef = useRef(0);
 
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
@@ -106,6 +110,120 @@ export function FootballProvider({ children }) {
       setToast(null);
     }, 3200);
   };
+
+  // Sync with cloud database function
+  const refreshFromCloud = useCallback(async () => {
+    // If local edit happened within last 4 seconds, don't overwrite with stale cloud fetch
+    if (Date.now() - lastLocalEditTimeRef.current < 4000) {
+      return;
+    }
+
+    try {
+      setCloudSyncStatus('syncing');
+      const cloudData = await fetchCloudStats();
+      if (cloudData && cloudData.stats) {
+        setPlayers((prevPlayers) => {
+          let hasAnyDiff = false;
+          const updated = prevPlayers.map((p) => {
+            const remote = cloudData.stats[p.id];
+            if (remote) {
+              const remoteGoals = remote.g !== undefined && remote.g !== null ? Number(remote.g) : p.goals;
+              const remoteAssists = remote.a !== undefined && remote.a !== null ? Number(remote.a) : p.assists;
+              const remoteMatches = remote.m !== undefined && remote.m !== null ? Number(remote.m) : p.matches;
+
+              if (p.goals !== remoteGoals || p.assists !== remoteAssists || p.matches !== remoteMatches) {
+                hasAnyDiff = true;
+                return {
+                  ...p,
+                  goals: remoteGoals,
+                  assists: remoteAssists,
+                  matches: remoteMatches
+                };
+              }
+            }
+            return p;
+          });
+
+          // Also merge any custom players from cloud
+          if (Array.isArray(cloudData.customPlayers)) {
+            const existingIds = new Set(updated.map((p) => p.id));
+            cloudData.customPlayers.forEach((cp) => {
+              if (!existingIds.has(cp.id)) {
+                hasAnyDiff = true;
+                updated.push(cp);
+              }
+            });
+          }
+
+          if (hasAnyDiff) {
+            localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(updated));
+            return updated;
+          }
+          return prevPlayers;
+        });
+
+        if (cloudData.teamInfo) {
+          setTeamInfo((prevTeam) => {
+            if (JSON.stringify(prevTeam) !== JSON.stringify(cloudData.teamInfo)) {
+              localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(cloudData.teamInfo));
+              return cloudData.teamInfo;
+            }
+            return prevTeam;
+          });
+        }
+
+        setCloudSyncStatus('synced');
+      } else {
+        // Fallback to local data
+        setCloudSyncStatus('synced');
+      }
+    } catch (err) {
+      console.warn('Error syncing from cloud:', err);
+      setCloudSyncStatus('offline');
+    }
+  }, []);
+
+  // Debounced cloud save helper
+  const triggerCloudSave = useCallback((newPlayers, newTeamInfo = null) => {
+    lastLocalEditTimeRef.current = Date.now();
+    if (pendingSaveTimeoutRef.current) {
+      clearTimeout(pendingSaveTimeoutRef.current);
+    }
+    setCloudSyncStatus('syncing');
+    pendingSaveTimeoutRef.current = setTimeout(async () => {
+      const res = await saveCloudStats(newPlayers, newTeamInfo || teamInfo);
+      if (res) {
+        setCloudSyncStatus('synced');
+      } else {
+        setCloudSyncStatus('offline');
+      }
+    }, 500);
+  }, [teamInfo]);
+
+  // Cloud polling and window focus listeners
+  useEffect(() => {
+    refreshFromCloud();
+
+    // Poll every 15s so other phones/devices see real-time updates without refreshing
+    const pollInterval = setInterval(() => {
+      refreshFromCloud();
+    }, 15000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFromCloud();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', refreshFromCloud);
+
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', refreshFromCloud);
+    };
+  }, [refreshFromCloud]);
 
   // Live multi-tab / multi-window synchronization (Admin panel <-> Oddiy panel)
   useEffect(() => {
@@ -217,11 +335,14 @@ export function FootballProvider({ children }) {
     showToast("Admin rejimidan chiqildi", 'info');
   };
 
-  // Live Counter increment/decrement for connected panels
+  // Live Counter increment/decrement for connected panels & Cloud DB
   const incrementStat = (playerId, field, amount = 1) => {
+    lastLocalEditTimeRef.current = Date.now();
     setLastUpdatedPlayerId(playerId);
-    setPlayers(prev =>
-      prev.map(p => {
+    
+    let updatedList = null;
+    setPlayers(prev => {
+      updatedList = prev.map(p => {
         if (p.id === playerId) {
           const currentVal = Number(p[field]) || 0;
           return {
@@ -230,8 +351,13 @@ export function FootballProvider({ children }) {
           };
         }
         return p;
-      })
-    );
+      });
+      return updatedList;
+    });
+
+    if (updatedList) {
+      triggerCloudSave(updatedList, teamInfo);
+    }
 
     setSelectedPlayer(prev => {
       if (prev && prev.id === playerId) {
@@ -243,7 +369,7 @@ export function FootballProvider({ children }) {
       return prev;
     });
 
-    const player = players.find(p => p.id === playerId);
+    const player = (updatedList || players).find(p => p.id === playerId);
     const fieldNames = {
       goals: 'gol',
       assists: 'assist',
@@ -257,9 +383,12 @@ export function FootballProvider({ children }) {
   };
 
   const decrementStat = (playerId, field, amount = 1) => {
+    lastLocalEditTimeRef.current = Date.now();
     setLastUpdatedPlayerId(playerId);
-    setPlayers(prev =>
-      prev.map(p => {
+
+    let updatedList = null;
+    setPlayers(prev => {
+      updatedList = prev.map(p => {
         if (p.id === playerId) {
           const currentVal = Number(p[field]) || 0;
           return {
@@ -268,8 +397,13 @@ export function FootballProvider({ children }) {
           };
         }
         return p;
-      })
-    );
+      });
+      return updatedList;
+    });
+
+    if (updatedList) {
+      triggerCloudSave(updatedList, teamInfo);
+    }
 
     setSelectedPlayer(prev => {
       if (prev && prev.id === playerId) {
@@ -281,7 +415,7 @@ export function FootballProvider({ children }) {
       return prev;
     });
 
-    const player = players.find(p => p.id === playerId);
+    const player = (updatedList || players).find(p => p.id === playerId);
     showToast(`${player ? player.name : 'Futbolchi'}: -${amount} kamaytirildi`, 'info');
 
     setTimeout(() => {
@@ -291,15 +425,16 @@ export function FootballProvider({ children }) {
 
   // Reset all player stats to 0
   const resetAllStatsToZero = () => {
-    setPlayers(prev =>
-      prev.map(p => ({
-        ...p,
-        goals: 0,
-        assists: 0,
-        matches: 0,
-        mvpCount: 0
-      }))
-    );
+    lastLocalEditTimeRef.current = Date.now();
+    const zeroed = players.map(p => ({
+      ...p,
+      goals: 0,
+      assists: 0,
+      matches: 0,
+      mvpCount: 0
+    }));
+    setPlayers(zeroed);
+    triggerCloudSave(zeroed, teamInfo);
     showToast("Barcha futbolchilar statistikasi 0 ga tenglashtirildi!", 'info');
   };
 
@@ -392,8 +527,9 @@ export function FootballProvider({ children }) {
     };
   }, [players]);
 
-  // CRUD for Players
+  // CRUD for Players with Cloud Sync
   const addPlayer = (newPlayerData) => {
+    lastLocalEditTimeRef.current = Date.now();
     const newPlayer = {
       ...newPlayerData,
       id: 'p_' + Date.now(),
@@ -403,15 +539,18 @@ export function FootballProvider({ children }) {
       jerseyNumber: Number(newPlayerData.jerseyNumber) || 10,
       season: newPlayerData.season || 'Bahor Kubogi 2025'
     };
-    setPlayers(prev => [newPlayer, ...prev]);
+    const next = [newPlayer, ...players];
+    setPlayers(next);
+    triggerCloudSave(next, teamInfo);
     showToast(`"${newPlayer.name}" ro‘yxatga qo‘shildi!`);
     return newPlayer;
   };
 
   const updatePlayer = (id, updatedData) => {
-    setPlayers(prev =>
-      prev.map(p => (p.id === id ? { ...p, ...updatedData, id } : p))
-    );
+    lastLocalEditTimeRef.current = Date.now();
+    const next = players.map(p => (p.id === id ? { ...p, ...updatedData, id } : p));
+    setPlayers(next);
+    triggerCloudSave(next, teamInfo);
     showToast(`Futbolchi ma'lumotlari yangilandi!`);
     if (selectedPlayer && selectedPlayer.id === id) {
       setSelectedPlayer(prev => ({ ...prev, ...updatedData }));
@@ -419,8 +558,11 @@ export function FootballProvider({ children }) {
   };
 
   const deletePlayer = (id) => {
+    lastLocalEditTimeRef.current = Date.now();
     const playerToDelete = players.find(p => p.id === id);
-    setPlayers(prev => prev.filter(p => p.id !== id));
+    const next = players.filter(p => p.id !== id);
+    setPlayers(next);
+    triggerCloudSave(next, teamInfo);
     if (selectedPlayer && selectedPlayer.id === id) {
       setSelectedPlayer(null);
     }
@@ -429,6 +571,7 @@ export function FootballProvider({ children }) {
 
   // Reset to default data
   const resetToDefaults = () => {
+    lastLocalEditTimeRef.current = Date.now();
     const zeroed = INITIAL_PLAYERS.map(p => ({
       ...p,
       goals: 0,
@@ -440,6 +583,7 @@ export function FootballProvider({ children }) {
     setTeamInfo(INITIAL_TEAM_INFO);
     localStorage.removeItem(STORAGE_KEYS.PLAYERS);
     localStorage.removeItem(STORAGE_KEYS.TEAM_INFO);
+    triggerCloudSave(zeroed, INITIAL_TEAM_INFO);
     showToast("Barcha boshlang‘ich ma'lumotlar 0 ga qaytarildi!", 'info');
   };
 
@@ -486,6 +630,11 @@ export function FootballProvider({ children }) {
         setIsDualPanelMode,
         lastUpdatedPlayerId,
 
+        // Cloud Database Sync
+        cloudSyncStatus,
+        refreshFromCloud,
+        triggerCloudSave,
+
         // Modals & Active items
         selectedPlayer,
         setSelectedPlayer,
@@ -514,7 +663,9 @@ export function FootballProvider({ children }) {
         updatePlayer,
         deletePlayer,
         updateTeamInfo: (info) => {
+          lastLocalEditTimeRef.current = Date.now();
           setTeamInfo(info);
+          triggerCloudSave(players, info);
           showToast("Jamoa ma'lumotlari saqlandi!");
         },
         resetToDefaults

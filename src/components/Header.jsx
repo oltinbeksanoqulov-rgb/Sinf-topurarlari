@@ -9,7 +9,9 @@ import {
   Lock, 
   Flame, 
   Users,
-  Gamepad2 
+  Gamepad2,
+  Cloud,
+  RefreshCw
 } from 'lucide-react';
 import { useFootball } from '../context/FootballContext';
 
@@ -19,7 +21,9 @@ export default function Header() {
     setSearchQuery, 
     setLeaderboardTab, 
     isAdmin, 
-    setIsAdminModalOpen
+    setIsAdminModalOpen,
+    cloudSyncStatus,
+    refreshFromCloud
   } = useFootball();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -115,7 +119,7 @@ export default function Header() {
               className="px-3.5 py-2 text-sm font-medium text-slate-300 hover:text-amber-300 rounded-lg hover:bg-slate-800/60 transition-colors flex items-center gap-1.5"
             >
               <Gamepad2 className="w-4 h-4 text-amber-400" />
-              Taktika (1-2-3-2)
+              Taktika (1-3-3-2)
             </button>
             <button
               onClick={() => handleNavClick('team')}
@@ -128,6 +132,30 @@ export default function Header() {
 
           {/* Right Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            {/* Cloud Live Sync Indicator */}
+            <button
+              onClick={refreshFromCloud}
+              title="Bulutli sinxronizatsiya: barcha o'quvchilar va telefonlarda bir xil hisob turadi. Bosilsa yangilanadi."
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700/70 text-[11px] font-medium text-slate-300 hover:text-white hover:border-emerald-500/50 transition-all cursor-pointer shadow-sm"
+            >
+              <span className="relative flex h-2 w-2">
+                {cloudSyncStatus === 'syncing' ? (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                ) : cloudSyncStatus === 'synced' ? (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                ) : null}
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                  cloudSyncStatus === 'syncing' ? 'bg-amber-400' :
+                  cloudSyncStatus === 'synced' ? 'bg-emerald-400' : 'bg-rose-500'
+                }`}></span>
+              </span>
+              <span className="hidden sm:inline font-mono text-[11px]">
+                {cloudSyncStatus === 'syncing' ? 'Sinxron...' :
+                 cloudSyncStatus === 'synced' ? 'Jonli Bulut' : 'Oflayn'}
+              </span>
+              <RefreshCw className={`w-3 h-3 text-slate-400 ${cloudSyncStatus === 'syncing' ? 'animate-spin text-amber-400' : ''}`} />
+            </button>
+
             {/* Search Toggle */}
             <div className="relative">
               <button
@@ -254,7 +282,7 @@ export default function Header() {
               >
                 <span className="flex items-center gap-2">
                   <Gamepad2 className="w-4 h-4 text-amber-400" />
-                  Taktik Sxema (1-2-3-2)
+                  Taktik Sxema (1-3-3-2)
                 </span>
                 <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-mono">FC Mobile</span>
               </button>
