@@ -32,6 +32,7 @@ export default function TacticalFormation() {
     // --- HUJUM (Attack) - 2 o'yinchi ---
     {
       slotId: 'st_left',
+      playerId: 'p2',
       nameMatch: 'Sanoqulov Oltinbek',
       shortName: 'SANOQULOV',
       formationPos: 'ST',
@@ -45,6 +46,7 @@ export default function TacticalFormation() {
     },
     {
       slotId: 'st_right',
+      playerId: 'p8',
       nameMatch: 'Xolyorov Ibrohim', // match with initialData spelling
       altNameMatch: 'Xoliyorov Ibrohim',
       shortName: 'XOLYOROV',
@@ -61,6 +63,7 @@ export default function TacticalFormation() {
     // --- YARIM HIMOYACHILAR (Midfield) - 3 o'yinchi ---
     {
       slotId: 'mid_left',
+      playerId: 'p6',
       nameMatch: 'Salaydinov Miraziz',
       shortName: 'SALAYDINOV',
       formationPos: 'LM',
@@ -74,6 +77,7 @@ export default function TacticalFormation() {
     },
     {
       slotId: 'mid_center',
+      playerId: 'p3',
       nameMatch: 'Xusanov Ozodbek',
       shortName: 'XUSANOV',
       formationPos: 'CAM',
@@ -87,6 +91,7 @@ export default function TacticalFormation() {
     },
     {
       slotId: 'mid_right',
+      playerId: 'p4',
       nameMatch: 'Qahramonov Samariddin',
       shortName: 'QAHRAMONOV',
       formationPos: 'RM',
@@ -102,6 +107,7 @@ export default function TacticalFormation() {
     // --- HIMOYACHILAR (Defense) - 3 o'yinchi ---
     {
       slotId: 'def_left',
+      playerId: 'p7',
       nameMatch: 'Xayrullayev Javohir',
       altNameMatch: 'Xayrullaryev Javohir',
       shortName: 'XAYRULLAYEV',
@@ -116,6 +122,7 @@ export default function TacticalFormation() {
     },
     {
       slotId: 'def_center',
+      playerId: 'p9',
       nameMatch: 'Misirov Umidjon',
       altNameMatch: 'Misirov Umidjion',
       shortName: 'MISIROV',
@@ -130,6 +137,7 @@ export default function TacticalFormation() {
     },
     {
       slotId: 'def_right',
+      playerId: 'p1',
       nameMatch: 'Eshmamatov Ibrohim',
       shortName: 'ESHMAMATOV',
       formationPos: 'RB',
@@ -145,6 +153,7 @@ export default function TacticalFormation() {
     // --- DARVOZABON (Goalkeeper) - 1 o'yinchi ---
     {
       slotId: 'gk',
+      playerId: 'p5',
       nameMatch: 'Abdumannonov Ibrohim',
       altNameMatch: 'Abdumanonov Ibrohim',
       shortName: 'ABDUMANNONOV',
@@ -162,10 +171,11 @@ export default function TacticalFormation() {
   // Map tactical lineup to live player data from context
   const fullLineup = tacticalLineup.map((slot) => {
     const matchedPlayer = players.find((p) => {
+      if (slot.playerId && p.id === slot.playerId) return true;
       const pName = p.name.trim().toLowerCase();
       const sName = slot.nameMatch.trim().toLowerCase();
       const altName = slot.altNameMatch ? slot.altNameMatch.trim().toLowerCase() : '';
-      return pName === sName || (altName && pName === altName) || pName.includes(slot.shortName.toLowerCase());
+      return pName === sName || (altName && pName === altName) || (slot.shortName && pName.includes(slot.shortName.toLowerCase()));
     }) || {
       id: slot.slotId,
       name: slot.nameMatch,

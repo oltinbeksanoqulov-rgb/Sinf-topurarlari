@@ -253,7 +253,7 @@ export default function Leaderboard() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                          <span className="font-semibold text-slate-300">{player.className || '10-A sinf'}</span>
+                          <span className="font-semibold text-slate-300">{player.className || '8-D sinf'}</span>
                           <span>•</span>
                           <span className="text-emerald-400/90">{player.position}</span>
                         </div>

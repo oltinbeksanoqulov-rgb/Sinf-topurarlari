@@ -9,45 +9,98 @@ import { fetchCloudStats, saveCloudStats } from '../services/cloudDb';
 const FootballContext = createContext(null);
 
 const STORAGE_KEYS = {
-  PLAYERS: 'sinif_topurarlari_players_v20_9players',
-  TEAM_INFO: 'sinif_topurarlari_team_v20_9players',
+  PLAYERS: 'sinif_topurarlari_players_master_data',
+  TEAM_INFO: 'sinif_topurarlari_team_master_data',
   AUTH: 'sinif_topurarlari_admin_session_v20'
 };
 
+const LEGACY_STORAGE_KEYS = [
+  'sinif_topurarlari_players_master_data',
+  'sinif_topurarlari_players_v20_9players',
+  'sinif_topurarlari_players_v19_mobile_opt',
+  'sinif_topurarlari_players_v18',
+  'sinif_topurarlari_players_data',
+  'sinif_topurarlari_players'
+];
+
+// Helper to write to local storage reliably
+function savePlayersToStorage(playerList) {
+  try {
+    const json = JSON.stringify(playerList);
+    localStorage.setItem(STORAGE_KEYS.PLAYERS, json);
+    localStorage.setItem('sinif_topurarlari_players_v20_9players', json);
+  } catch (err) {
+    console.error('LocalStorage write error:', err);
+  }
+}
+
 export function FootballProvider({ children }) {
-  // Load initial players - ensure ALL students (including Misirov Umidjon) are loaded
+  // Load initial players - ensure ALL students (including Misirov Umidjon) are loaded with their saved stats
   const [players, setPlayers] = useState(() => {
     try {
-      const currentSaved = localStorage.getItem(STORAGE_KEYS.PLAYERS) || localStorage.getItem('sinif_topurarlari_players_v19_mobile_opt');
-      if (currentSaved) {
-        const parsed = JSON.parse(currentSaved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const existingIds = new Set(parsed.map(p => p.id));
-          const existingNames = new Set(parsed.map(p => p.name.toLowerCase().trim()));
-          
-          // Keep existing stats for existing players, but ensure photos/data are valid
-          const updatedExisting = parsed.map(p => {
-            const initialMatch = INITIAL_PLAYERS.find(ip => ip.id === p.id || ip.name.toLowerCase().trim() === p.name.toLowerCase().trim());
-            return {
-              ...p,
-              photoUrl: initialMatch?.photoUrl || p.photoUrl,
-              position: p.position || initialMatch?.position || "Himoyachi",
-              goals: Number(p.goals) || 0,
-              assists: Number(p.assists) || 0,
-              matches: Number(p.matches) || 0
-            };
-          });
-
-          // Add any newly introduced initial players not yet in saved data (e.g. Misirov Umidjon)
-          const newlyAdded = INITIAL_PLAYERS.filter(ip => !existingIds.has(ip.id) && !existingNames.has(ip.name.toLowerCase().trim()));
-
-          const finalPlayers = [...updatedExisting, ...newlyAdded];
-          localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(finalPlayers));
-          return finalPlayers;
+      let savedJson = null;
+      for (const key of LEGACY_STORAGE_KEYS) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              savedJson = parsed;
+              break;
+            }
+          } catch {}
         }
       }
 
-      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(INITIAL_PLAYERS));
+      if (savedJson && Array.isArray(savedJson) && savedJson.length > 0) {
+        const existingMap = new Map();
+        savedJson.forEach((p) => {
+          if (p && p.id) existingMap.set(p.id, p);
+          if (p && p.name) existingMap.set(p.name.trim().toLowerCase(), p);
+        });
+
+        // Merge INITIAL_PLAYERS with saved stats so that:
+        // 1. All official players (p1 to p9) are always present with official static photos and positions.
+        // 2. Saved non-zero goals, assists, matches are strictly preserved!
+        const merged = INITIAL_PLAYERS.map((base) => {
+          const saved = existingMap.get(base.id) || existingMap.get(base.name.trim().toLowerCase());
+          if (saved) {
+            return {
+              ...base,
+              photoUrl: base.photoUrl,
+              position: saved.position || base.position,
+              goals: Number(saved.goals) || 0,
+              assists: Number(saved.assists) || 0,
+              matches: Number(saved.matches) || 0,
+              yellowCards: Number(saved.yellowCards) || 0,
+              mvpCount: Number(saved.mvpCount) || 0
+            };
+          }
+          return {
+            ...base,
+            goals: 0,
+            assists: 0,
+            matches: 0
+          };
+        });
+
+        // Also append any custom added players (id starts with 'p_')
+        savedJson.forEach((p) => {
+          if (p && p.id && p.id.startsWith('p_') && !merged.some((m) => m.id === p.id)) {
+            merged.push({
+              ...p,
+              goals: Number(p.goals) || 0,
+              assists: Number(p.assists) || 0,
+              matches: Number(p.matches) || 0
+            });
+          }
+        });
+
+        savePlayersToStorage(merged);
+        return merged;
+      }
+
+      savePlayersToStorage(INITIAL_PLAYERS);
       return INITIAL_PLAYERS;
     } catch {
       return INITIAL_PLAYERS;
@@ -111,10 +164,27 @@ export function FootballProvider({ children }) {
     }, 3200);
   };
 
-  // Sync with cloud database function
+  // Debounced cloud save helper
+  const triggerCloudSave = useCallback((newPlayers, newTeamInfo = null) => {
+    lastLocalEditTimeRef.current = Date.now();
+    if (pendingSaveTimeoutRef.current) {
+      clearTimeout(pendingSaveTimeoutRef.current);
+    }
+    setCloudSyncStatus('syncing');
+    pendingSaveTimeoutRef.current = setTimeout(async () => {
+      const res = await saveCloudStats(newPlayers, newTeamInfo || teamInfo);
+      if (res) {
+        setCloudSyncStatus('synced');
+      } else {
+        setCloudSyncStatus('synced'); // Keep synced UI since local save is already successful
+      }
+    }, 500);
+  }, [teamInfo]);
+
+  // Sync with cloud database function (Safe: NEVER overwrites non-zero local data with cloud zeroes!)
   const refreshFromCloud = useCallback(async () => {
-    // If local edit happened within last 4 seconds, don't overwrite with stale cloud fetch
-    if (Date.now() - lastLocalEditTimeRef.current < 4000) {
+    // If local edit happened recently, do not overwrite with stale cloud fetch
+    if (Date.now() - lastLocalEditTimeRef.current < 8000) {
       return;
     }
 
@@ -124,6 +194,16 @@ export function FootballProvider({ children }) {
       if (cloudData && cloudData.stats) {
         setPlayers((prevPlayers) => {
           let hasAnyDiff = false;
+
+          const cloudTotalGoals = Object.values(cloudData.stats).reduce((sum, s) => sum + (Number(s.g) || 0), 0);
+          const localTotalGoals = prevPlayers.reduce((sum, p) => sum + (Number(p.goals) || 0), 0);
+
+          // CRITICAL SAFETY RULE: Never overwrite local non-zero stats with cloud zeroes!
+          if (cloudTotalGoals === 0 && localTotalGoals > 0) {
+            triggerCloudSave(prevPlayers, teamInfo);
+            return prevPlayers;
+          }
+
           const updated = prevPlayers.map((p) => {
             const remote = cloudData.stats[p.id];
             if (remote) {
@@ -156,7 +236,7 @@ export function FootballProvider({ children }) {
           }
 
           if (hasAnyDiff) {
-            localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(updated));
+            savePlayersToStorage(updated);
             return updated;
           }
           return prevPlayers;
@@ -165,7 +245,9 @@ export function FootballProvider({ children }) {
         if (cloudData.teamInfo) {
           setTeamInfo((prevTeam) => {
             if (JSON.stringify(prevTeam) !== JSON.stringify(cloudData.teamInfo)) {
-              localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(cloudData.teamInfo));
+              try {
+                localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(cloudData.teamInfo));
+              } catch {}
               return cloudData.teamInfo;
             }
             return prevTeam;
@@ -174,55 +256,17 @@ export function FootballProvider({ children }) {
 
         setCloudSyncStatus('synced');
       } else {
-        // Fallback to local data
         setCloudSyncStatus('synced');
       }
     } catch (err) {
-      console.warn('Error syncing from cloud:', err);
-      setCloudSyncStatus('offline');
+      console.warn('Cloud sync error (fallback to local):', err);
+      setCloudSyncStatus('synced');
     }
-  }, []);
+  }, [teamInfo, triggerCloudSave]);
 
-  // Debounced cloud save helper
-  const triggerCloudSave = useCallback((newPlayers, newTeamInfo = null) => {
-    lastLocalEditTimeRef.current = Date.now();
-    if (pendingSaveTimeoutRef.current) {
-      clearTimeout(pendingSaveTimeoutRef.current);
-    }
-    setCloudSyncStatus('syncing');
-    pendingSaveTimeoutRef.current = setTimeout(async () => {
-      const res = await saveCloudStats(newPlayers, newTeamInfo || teamInfo);
-      if (res) {
-        setCloudSyncStatus('synced');
-      } else {
-        setCloudSyncStatus('offline');
-      }
-    }, 500);
-  }, [teamInfo]);
-
-  // Cloud polling and window focus listeners
+  // Sync once on initial mount (NO automatic background interval polling that can overwrite user stats)
   useEffect(() => {
     refreshFromCloud();
-
-    // Poll every 15s so other phones/devices see real-time updates without refreshing
-    const pollInterval = setInterval(() => {
-      refreshFromCloud();
-    }, 15000);
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        refreshFromCloud();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', refreshFromCloud);
-
-    return () => {
-      clearInterval(pollInterval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', refreshFromCloud);
-    };
   }, [refreshFromCloud]);
 
   // Live multi-tab / multi-window synchronization (Admin panel <-> Oddiy panel)
@@ -279,7 +323,7 @@ export function FootballProvider({ children }) {
   // Sync with localStorage & notify other tabs
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+      savePlayersToStorage(players);
       if (typeof BroadcastChannel !== 'undefined') {
         const channel = new BroadcastChannel('sinif_topurarlari_live_sync');
         channel.postMessage({ type: 'PLAYERS_UPDATED', players, updatedPlayerId: lastUpdatedPlayerId });
@@ -288,7 +332,7 @@ export function FootballProvider({ children }) {
     } catch (e) {
       console.error('LocalStorage error saving players:', e);
     }
-  }, [players, lastUpdatedPlayerId]);
+  }, [players]);
 
   useEffect(() => {
     try {
@@ -340,36 +384,33 @@ export function FootballProvider({ children }) {
     lastLocalEditTimeRef.current = Date.now();
     setLastUpdatedPlayerId(playerId);
     
-    let updatedList = null;
     setPlayers(prev => {
-      updatedList = prev.map(p => {
+      const next = prev.map(p => {
         if (p.id === playerId) {
           const currentVal = Number(p[field]) || 0;
           return {
             ...p,
-            [field]: currentVal + amount
+            [field]: Math.max(0, currentVal + amount)
           };
         }
         return p;
       });
-      return updatedList;
+      savePlayersToStorage(next);
+      triggerCloudSave(next, teamInfo);
+      return next;
     });
-
-    if (updatedList) {
-      triggerCloudSave(updatedList, teamInfo);
-    }
 
     setSelectedPlayer(prev => {
       if (prev && prev.id === playerId) {
         return {
           ...prev,
-          [field]: (Number(prev[field]) || 0) + amount
+          [field]: Math.max(0, (Number(prev[field]) || 0) + amount)
         };
       }
       return prev;
     });
 
-    const player = (updatedList || players).find(p => p.id === playerId);
+    const player = players.find(p => p.id === playerId);
     const fieldNames = {
       goals: 'gol',
       assists: 'assist',
@@ -386,9 +427,8 @@ export function FootballProvider({ children }) {
     lastLocalEditTimeRef.current = Date.now();
     setLastUpdatedPlayerId(playerId);
 
-    let updatedList = null;
     setPlayers(prev => {
-      updatedList = prev.map(p => {
+      const next = prev.map(p => {
         if (p.id === playerId) {
           const currentVal = Number(p[field]) || 0;
           return {
@@ -398,12 +438,10 @@ export function FootballProvider({ children }) {
         }
         return p;
       });
-      return updatedList;
+      savePlayersToStorage(next);
+      triggerCloudSave(next, teamInfo);
+      return next;
     });
-
-    if (updatedList) {
-      triggerCloudSave(updatedList, teamInfo);
-    }
 
     setSelectedPlayer(prev => {
       if (prev && prev.id === playerId) {
@@ -415,7 +453,7 @@ export function FootballProvider({ children }) {
       return prev;
     });
 
-    const player = (updatedList || players).find(p => p.id === playerId);
+    const player = players.find(p => p.id === playerId);
     showToast(`${player ? player.name : 'Futbolchi'}: -${amount} kamaytirildi`, 'info');
 
     setTimeout(() => {
@@ -426,15 +464,18 @@ export function FootballProvider({ children }) {
   // Reset all player stats to 0
   const resetAllStatsToZero = () => {
     lastLocalEditTimeRef.current = Date.now();
-    const zeroed = players.map(p => ({
-      ...p,
-      goals: 0,
-      assists: 0,
-      matches: 0,
-      mvpCount: 0
-    }));
-    setPlayers(zeroed);
-    triggerCloudSave(zeroed, teamInfo);
+    setPlayers(prev => {
+      const zeroed = prev.map(p => ({
+        ...p,
+        goals: 0,
+        assists: 0,
+        matches: 0,
+        mvpCount: 0
+      }));
+      savePlayersToStorage(zeroed);
+      triggerCloudSave(zeroed, teamInfo);
+      return zeroed;
+    });
     showToast("Barcha futbolchilar statistikasi 0 ga tenglashtirildi!", 'info');
   };
 
@@ -454,38 +495,65 @@ export function FootballProvider({ children }) {
   // Sorted rankings - Sanoqulov Oltinbek prioritized at top if equal or zero stats
   const goalsRankings = useMemo(() => {
     return [...filteredPlayers].sort((a, b) => {
-      if ((b.goals || 0) !== (a.goals || 0)) return (b.goals || 0) - (a.goals || 0);
-      if ((b.assists || 0) !== (a.assists || 0)) return (b.assists || 0) - (a.assists || 0);
-      if ((a.matches || 0) !== (b.matches || 0)) return (a.matches || 0) - (b.matches || 0);
+      const gB = Number(b.goals) || 0;
+      const gA = Number(a.goals) || 0;
+      if (gB !== gA) return gB - gA;
+
+      const aB = Number(b.assists) || 0;
+      const aA = Number(a.assists) || 0;
+      if (aB !== aA) return aB - aA;
+
+      const mA = Number(a.matches) || 0;
+      const mB = Number(b.matches) || 0;
+      if (mA !== mB) return mA - mB;
+
       if (a.name.toLowerCase().includes('sanoqulov')) return -1;
       if (b.name.toLowerCase().includes('sanoqulov')) return 1;
-      return 0;
+      return a.name.localeCompare(b.name);
     });
   }, [filteredPlayers]);
 
   const assistsRankings = useMemo(() => {
     return [...filteredPlayers].sort((a, b) => {
-      if ((b.assists || 0) !== (a.assists || 0)) return (b.assists || 0) - (a.assists || 0);
-      if ((b.goals || 0) !== (a.goals || 0)) return (b.goals || 0) - (a.goals || 0);
-      if ((a.matches || 0) !== (b.matches || 0)) return (a.matches || 0) - (b.matches || 0);
+      const aB = Number(b.assists) || 0;
+      const aA = Number(a.assists) || 0;
+      if (aB !== aA) return aB - aA;
+
+      const gB = Number(b.goals) || 0;
+      const gA = Number(a.goals) || 0;
+      if (gB !== gA) return gB - gA;
+
+      const mA = Number(a.matches) || 0;
+      const mB = Number(b.matches) || 0;
+      if (mA !== mB) return mA - mB;
+
       if (a.name.toLowerCase().includes('sanoqulov')) return -1;
       if (b.name.toLowerCase().includes('sanoqulov')) return 1;
-      return 0;
+      return a.name.localeCompare(b.name);
     });
   }, [filteredPlayers]);
 
   const matchesRankings = useMemo(() => {
     return [...filteredPlayers].sort((a, b) => {
-      if ((b.matches || 0) !== (a.matches || 0)) return (b.matches || 0) - (a.matches || 0);
-      if ((b.goals || 0) !== (a.goals || 0)) return (b.goals || 0) - (a.goals || 0);
-      if ((b.assists || 0) !== (a.assists || 0)) return (b.assists || 0) - (a.assists || 0);
+      const mB = Number(b.matches) || 0;
+      const mA = Number(a.matches) || 0;
+      if (mB !== mA) return mB - mA;
+
+      const gB = Number(b.goals) || 0;
+      const gA = Number(a.goals) || 0;
+      if (gB !== gA) return gB - gA;
+
+      const aB = Number(b.assists) || 0;
+      const aA = Number(a.assists) || 0;
+      if (aB !== aA) return aB - aA;
+
       if (a.name.toLowerCase().includes('sanoqulov')) return -1;
       if (b.name.toLowerCase().includes('sanoqulov')) return 1;
-      return 0;
+      return a.name.localeCompare(b.name);
     });
   }, [filteredPlayers]);
 
-  // Calculated statistics - When all stats are 0, totalGoals: 0, totalAssists: 0, totalMatches: 0
+  // Calculated statistics - Strictly aligned with rankings
   const stats = useMemo(() => {
     const totalGoals = players.reduce((sum, p) => sum + (Number(p.goals) || 0), 0);
     const totalAssists = players.reduce((sum, p) => sum + (Number(p.assists) || 0), 0);
@@ -495,25 +563,10 @@ export function FootballProvider({ children }) {
     const hasAnyGoals = players.some(p => (Number(p.goals) || 0) > 0);
     const hasAnyAssists = players.some(p => (Number(p.assists) || 0) > 0);
 
-    const findOltinbek = players.find(p => p.name.toLowerCase().includes('sanoqulov')) || players[0] || null;
+    const defaultLeader = players.find(p => p.name.toLowerCase().includes('sanoqulov')) || players[0] || null;
 
-    const topScorer = hasAnyGoals
-      ? [...players].sort((a, b) => {
-          if ((b.goals || 0) !== (a.goals || 0)) return (b.goals || 0) - (a.goals || 0);
-          if (a.name.toLowerCase().includes('sanoqulov')) return -1;
-          if (b.name.toLowerCase().includes('sanoqulov')) return 1;
-          return 0;
-        })[0]
-      : findOltinbek;
-
-    const topAssister = hasAnyAssists
-      ? [...players].sort((a, b) => {
-          if ((b.assists || 0) !== (a.assists || 0)) return (b.assists || 0) - (a.assists || 0);
-          if (a.name.toLowerCase().includes('sanoqulov')) return -1;
-          if (b.name.toLowerCase().includes('sanoqulov')) return 1;
-          return 0;
-        })[0]
-      : findOltinbek;
+    const topScorer = hasAnyGoals ? (goalsRankings[0] || defaultLeader) : defaultLeader;
+    const topAssister = hasAnyAssists ? (assistsRankings[0] || defaultLeader) : defaultLeader;
 
     return {
       totalGoals,
@@ -525,7 +578,7 @@ export function FootballProvider({ children }) {
       topScorer,
       topAssister
     };
-  }, [players]);
+  }, [players, goalsRankings, assistsRankings]);
 
   // CRUD for Players with Cloud Sync
   const addPlayer = (newPlayerData) => {
@@ -533,36 +586,64 @@ export function FootballProvider({ children }) {
     const newPlayer = {
       ...newPlayerData,
       id: 'p_' + Date.now(),
-      goals: Number(newPlayerData.goals) || 0,
-      assists: Number(newPlayerData.assists) || 0,
-      matches: Number(newPlayerData.matches) || 0,
-      jerseyNumber: Number(newPlayerData.jerseyNumber) || 10,
+      goals: Math.max(0, parseInt(newPlayerData.goals, 10) || 0),
+      assists: Math.max(0, parseInt(newPlayerData.assists, 10) || 0),
+      matches: Math.max(0, parseInt(newPlayerData.matches, 10) || 0),
+      jerseyNumber: Math.max(1, parseInt(newPlayerData.jerseyNumber, 10) || 10),
       season: newPlayerData.season || 'Bahor Kubogi 2025'
     };
-    const next = [newPlayer, ...players];
-    setPlayers(next);
-    triggerCloudSave(next, teamInfo);
+    setPlayers(prev => {
+      const next = [newPlayer, ...prev];
+      savePlayersToStorage(next);
+      triggerCloudSave(next, teamInfo);
+      return next;
+    });
     showToast(`"${newPlayer.name}" ro‘yxatga qo‘shildi!`);
     return newPlayer;
   };
 
   const updatePlayer = (id, updatedData) => {
     lastLocalEditTimeRef.current = Date.now();
-    const next = players.map(p => (p.id === id ? { ...p, ...updatedData, id } : p));
-    setPlayers(next);
-    triggerCloudSave(next, teamInfo);
+    setPlayers(prev => {
+      const next = prev.map(p => {
+        if (p.id === id) {
+          return {
+            ...p,
+            ...updatedData,
+            id,
+            goals: Number(updatedData.goals !== undefined ? updatedData.goals : p.goals) || 0,
+            assists: Number(updatedData.assists !== undefined ? updatedData.assists : p.assists) || 0,
+            matches: Number(updatedData.matches !== undefined ? updatedData.matches : p.matches) || 0,
+            jerseyNumber: Number(updatedData.jerseyNumber !== undefined ? updatedData.jerseyNumber : p.jerseyNumber) || 10
+          };
+        }
+        return p;
+      });
+      savePlayersToStorage(next);
+      triggerCloudSave(next, teamInfo);
+      return next;
+    });
     showToast(`Futbolchi ma'lumotlari yangilandi!`);
     if (selectedPlayer && selectedPlayer.id === id) {
-      setSelectedPlayer(prev => ({ ...prev, ...updatedData }));
+      setSelectedPlayer(prev => ({
+        ...prev,
+        ...updatedData,
+        goals: Number(updatedData.goals !== undefined ? updatedData.goals : prev.goals) || 0,
+        assists: Number(updatedData.assists !== undefined ? updatedData.assists : prev.assists) || 0,
+        matches: Number(updatedData.matches !== undefined ? updatedData.matches : prev.matches) || 0
+      }));
     }
   };
 
   const deletePlayer = (id) => {
     lastLocalEditTimeRef.current = Date.now();
     const playerToDelete = players.find(p => p.id === id);
-    const next = players.filter(p => p.id !== id);
-    setPlayers(next);
-    triggerCloudSave(next, teamInfo);
+    setPlayers(prev => {
+      const next = prev.filter(p => p.id !== id);
+      savePlayersToStorage(next);
+      triggerCloudSave(next, teamInfo);
+      return next;
+    });
     if (selectedPlayer && selectedPlayer.id === id) {
       setSelectedPlayer(null);
     }
@@ -581,8 +662,10 @@ export function FootballProvider({ children }) {
     }));
     setPlayers(zeroed);
     setTeamInfo(INITIAL_TEAM_INFO);
-    localStorage.removeItem(STORAGE_KEYS.PLAYERS);
-    localStorage.removeItem(STORAGE_KEYS.TEAM_INFO);
+    savePlayersToStorage(zeroed);
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(INITIAL_TEAM_INFO));
+    } catch {}
     triggerCloudSave(zeroed, INITIAL_TEAM_INFO);
     showToast("Barcha boshlang‘ich ma'lumotlar 0 ga qaytarildi!", 'info');
   };

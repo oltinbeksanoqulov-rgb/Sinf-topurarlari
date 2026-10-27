@@ -99,10 +99,18 @@ export default function AdminModal() {
     e.preventDefault();
     if (!playerFormData.name.trim()) return;
 
+    const payload = {
+      ...playerFormData,
+      goals: Math.max(0, parseInt(playerFormData.goals, 10) || 0),
+      assists: Math.max(0, parseInt(playerFormData.assists, 10) || 0),
+      matches: Math.max(0, parseInt(playerFormData.matches, 10) || 0),
+      jerseyNumber: Math.max(1, parseInt(playerFormData.jerseyNumber, 10) || 10)
+    };
+
     if (editingPlayerId) {
-      updatePlayer(editingPlayerId, playerFormData);
+      updatePlayer(editingPlayerId, payload);
     } else {
-      addPlayer(playerFormData);
+      addPlayer(payload);
     }
 
     setIsPlayerFormOpen(false);
