@@ -139,7 +139,22 @@ export function FootballProvider({ children }) {
   const [selectedSeason, setSelectedSeason] = useState('Jami mavsum');
   const [searchQuery, setSearchQuery] = useState('');
   const [leaderboardTab, setLeaderboardTab] = useState('goals'); // 'goals' | 'assists'
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+  const selectedPlayer = useMemo(() => {
+    if (!selectedPlayerId) return null;
+    return players.find(p => p.id === selectedPlayerId) || null;
+  }, [players, selectedPlayerId]);
+
+  const setSelectedPlayer = useCallback((playerOrId) => {
+    if (!playerOrId) {
+      setSelectedPlayerId(null);
+    } else if (typeof playerOrId === 'string') {
+      setSelectedPlayerId(playerOrId);
+    } else if (playerOrId.id) {
+      setSelectedPlayerId(playerOrId.id);
+    }
+  }, []);
+
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isDualPanelMode, setIsDualPanelMode] = useState(false); // Side-by-side Two Panels mode
   const [lastUpdatedPlayerId, setLastUpdatedPlayerId] = useState(null); // For pulse animation
@@ -147,6 +162,8 @@ export function FootballProvider({ children }) {
     isSupabaseConfigured ? 'connecting' : 'unconfigured'
   ); // 'connected' | 'connecting' | 'unconfigured' | 'syncing' | 'error'
   const lastLocalEditTimeRef = useRef(0);
+  const isRemoteUpdateRef = useRef(false);
+  const broadcastChannelRef = useRef(null);
 
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
@@ -183,7 +200,13 @@ export function FootballProvider({ children }) {
 
     try {
       setCloudSyncStatus('syncing');
-      const remoteList = await fetchRemotePlayers();
+      const { data: remoteList, error } = await fetchRemotePlayers();
+      if (error) {
+        setCloudSyncStatus('error');
+        showToast("Bulutdan yuklashda xatolik yuz berdi: " + error, "error");
+        return;
+      }
+
       if (remoteList && remoteList.length > 0) {
         setPlayers((prevPlayers) => {
           const remoteMap = new Map(remoteList.map(p => [p.id, p]));
@@ -210,7 +233,7 @@ export function FootballProvider({ children }) {
           return merged;
         });
         setCloudSyncStatus('connected');
-        showToast("Supabase bilan yangilandi!", "success");
+        showToast("Supabase bilan muvaffaqiyatli yangilandi!", "success");
       } else {
         setCloudSyncStatus('connected');
       }
@@ -233,7 +256,13 @@ export function FootballProvider({ children }) {
     async function initSupabase() {
       try {
         setCloudSyncStatus('connecting');
-        const remoteList = await fetchRemotePlayers();
+        const { data: remoteList, error } = await fetchRemotePlayers();
+        if (error) {
+          console.warn('Supabase fetch error:', error);
+          if (isMounted) setCloudSyncStatus('error');
+          return;
+        }
+
         if (remoteList && remoteList.length > 0 && isMounted) {
           setPlayers((prevPlayers) => {
             const remoteMap = new Map(remoteList.map(p => [p.id, p]));
@@ -260,7 +289,7 @@ export function FootballProvider({ children }) {
             return merged;
           });
           setCloudSyncStatus('connected');
-        } else if (isMounted) {
+        } else if (remoteList && remoteList.length === 0 && isMounted) {
           // If Supabase table is empty on first setup, seed it with current players!
           players.forEach(p => upsertRemotePlayer(p));
           setCloudSyncStatus('connected');
@@ -281,6 +310,7 @@ export function FootballProvider({ children }) {
         const updatedPlayer = rowToPlayer(payload.new);
         if (!updatedPlayer) return;
 
+        isRemoteUpdateRef.current = true;
         setPlayers((prev) => {
           let found = false;
           const next = prev.map((p) => {
@@ -309,6 +339,7 @@ export function FootballProvider({ children }) {
       } else if (payload.eventType === 'DELETE') {
         const deletedId = payload.old?.id;
         if (deletedId) {
+          isRemoteUpdateRef.current = true;
           setPlayers((prev) => {
             const next = prev.filter((p) => p.id !== deletedId);
             savePlayersToStorage(next);
@@ -326,12 +357,12 @@ export function FootballProvider({ children }) {
 
   // Live multi-tab / multi-window synchronization (Admin panel <-> Oddiy panel)
   useEffect(() => {
-    let channel;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
-        channel = new BroadcastChannel('sinif_topurarlari_live_sync');
-        channel.onmessage = (event) => {
+        broadcastChannelRef.current = new BroadcastChannel('sinif_topurarlari_live_sync');
+        broadcastChannelRef.current.onmessage = (event) => {
           if (event.data?.type === 'PLAYERS_UPDATED' && Array.isArray(event.data.players)) {
+            isRemoteUpdateRef.current = true;
             setPlayers(event.data.players);
             if (event.data.updatedPlayerId) {
               setLastUpdatedPlayerId(event.data.updatedPlayerId);
@@ -339,6 +370,7 @@ export function FootballProvider({ children }) {
             }
           }
           if (event.data?.type === 'TEAM_UPDATED' && event.data.teamInfo) {
+            isRemoteUpdateRef.current = true;
             setTeamInfo(event.data.teamInfo);
           }
         };
@@ -352,6 +384,7 @@ export function FootballProvider({ children }) {
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
+            isRemoteUpdateRef.current = true;
             setPlayers(parsed);
           }
         } catch (err) {
@@ -360,6 +393,7 @@ export function FootballProvider({ children }) {
       }
       if (e.key === STORAGE_KEYS.TEAM_INFO && e.newValue) {
         try {
+          isRemoteUpdateRef.current = true;
           setTeamInfo(JSON.parse(e.newValue));
         } catch (err) {
           console.error('Team sync error:', err);
@@ -370,7 +404,10 @@ export function FootballProvider({ children }) {
     window.addEventListener('storage', handleStorage);
 
     return () => {
-      if (channel) channel.close();
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
+      }
       window.removeEventListener('storage', handleStorage);
     };
   }, []);
@@ -379,11 +416,14 @@ export function FootballProvider({ children }) {
   useEffect(() => {
     try {
       savePlayersToStorage(players);
-      if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('sinif_topurarlari_live_sync');
-        channel.postMessage({ type: 'PLAYERS_UPDATED', players, updatedPlayerId: lastUpdatedPlayerId });
-        channel.close();
+      if (!isRemoteUpdateRef.current && broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'PLAYERS_UPDATED',
+          players,
+          updatedPlayerId: lastUpdatedPlayerId
+        });
       }
+      isRemoteUpdateRef.current = false;
     } catch (e) {
       console.error('LocalStorage error saving players:', e);
     }
@@ -392,11 +432,10 @@ export function FootballProvider({ children }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.TEAM_INFO, JSON.stringify(teamInfo));
-      if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel('sinif_topurarlari_live_sync');
-        channel.postMessage({ type: 'TEAM_UPDATED', teamInfo });
-        channel.close();
+      if (!isRemoteUpdateRef.current && broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({ type: 'TEAM_UPDATED', teamInfo });
       }
+      isRemoteUpdateRef.current = false;
     } catch (e) {
       console.error('LocalStorage error saving teamInfo:', e);
     }
@@ -436,6 +475,11 @@ export function FootballProvider({ children }) {
 
   // Live Counter increment/decrement for connected panels & Supabase Realtime DB
   const incrementStat = (playerId, field, amount = 1) => {
+    if (!isAdmin) {
+      showToast("Faqat admin statistikani o‘zgartirishi mumkin!", 'error');
+      return;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     setLastUpdatedPlayerId(playerId);
     
@@ -459,16 +503,6 @@ export function FootballProvider({ children }) {
       incrementRemoteStat(playerId, field, amount);
     }
 
-    setSelectedPlayer(prev => {
-      if (prev && prev.id === playerId) {
-        return {
-          ...prev,
-          [field]: Math.max(0, (Number(prev[field]) || 0) + amount)
-        };
-      }
-      return prev;
-    });
-
     const player = players.find(p => p.id === playerId);
     const fieldNames = {
       goals: 'gol',
@@ -483,6 +517,11 @@ export function FootballProvider({ children }) {
   };
 
   const decrementStat = (playerId, field, amount = 1) => {
+    if (!isAdmin) {
+      showToast("Faqat admin statistikani o‘zgartirishi mumkin!", 'error');
+      return;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     setLastUpdatedPlayerId(playerId);
 
@@ -506,16 +545,6 @@ export function FootballProvider({ children }) {
       incrementRemoteStat(playerId, field, -amount);
     }
 
-    setSelectedPlayer(prev => {
-      if (prev && prev.id === playerId) {
-        return {
-          ...prev,
-          [field]: Math.max(0, (Number(prev[field]) || 0) - amount)
-        };
-      }
-      return prev;
-    });
-
     const player = players.find(p => p.id === playerId);
     showToast(`${player ? player.name : 'Futbolchi'}: -${amount} kamaytirildi`, 'info');
 
@@ -526,6 +555,11 @@ export function FootballProvider({ children }) {
 
   // Reset all player stats to 0
   const resetAllStatsToZero = () => {
+    if (!isAdmin) {
+      showToast("Faqat admin statistikani tozalashi mumkin!", 'error');
+      return;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     setPlayers(prev => {
       const zeroed = prev.map(p => ({
@@ -559,9 +593,9 @@ export function FootballProvider({ children }) {
     });
   }, [players, selectedSeason, searchQuery]);
 
-  // Sorted rankings - Sanoqulov Oltinbek prioritized at top if equal or zero stats
-  const goalsRankings = useMemo(() => {
-    return [...filteredPlayers].sort((a, b) => {
+  // Unified sorting helpers
+  const sortPlayersByGoals = (list) => {
+    return [...list].sort((a, b) => {
       const gB = Number(b.goals) || 0;
       const gA = Number(a.goals) || 0;
       if (gB !== gA) return gB - gA;
@@ -578,10 +612,10 @@ export function FootballProvider({ children }) {
       if (b.name.toLowerCase().includes('sanoqulov')) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [filteredPlayers]);
+  };
 
-  const assistsRankings = useMemo(() => {
-    return [...filteredPlayers].sort((a, b) => {
+  const sortPlayersByAssists = (list) => {
+    return [...list].sort((a, b) => {
       const aB = Number(b.assists) || 0;
       const aA = Number(a.assists) || 0;
       if (aB !== aA) return aB - aA;
@@ -598,10 +632,10 @@ export function FootballProvider({ children }) {
       if (b.name.toLowerCase().includes('sanoqulov')) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [filteredPlayers]);
+  };
 
-  const matchesRankings = useMemo(() => {
-    return [...filteredPlayers].sort((a, b) => {
+  const sortPlayersByMatches = (list) => {
+    return [...list].sort((a, b) => {
       const mB = Number(b.matches) || 0;
       const mA = Number(a.matches) || 0;
       if (mB !== mA) return mB - mA;
@@ -618,9 +652,19 @@ export function FootballProvider({ children }) {
       if (b.name.toLowerCase().includes('sanoqulov')) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [filteredPlayers]);
+  };
 
-  // Calculated statistics - Strictly aligned with rankings
+  // True team rankings from entire squad (unfiltered)
+  const allGoalsRankings = useMemo(() => sortPlayersByGoals(players), [players]);
+  const allAssistsRankings = useMemo(() => sortPlayersByAssists(players), [players]);
+  const allMatchesRankings = useMemo(() => sortPlayersByMatches(players), [players]);
+
+  // Tabular rankings for Leaderboard (filtered by season and search)
+  const goalsRankings = useMemo(() => sortPlayersByGoals(filteredPlayers), [filteredPlayers]);
+  const assistsRankings = useMemo(() => sortPlayersByAssists(filteredPlayers), [filteredPlayers]);
+  const matchesRankings = useMemo(() => sortPlayersByMatches(filteredPlayers), [filteredPlayers]);
+
+  // Calculated statistics - Strictly aligned with rankings and true database values
   const stats = useMemo(() => {
     const totalGoals = players.reduce((sum, p) => sum + (Number(p.goals) || 0), 0);
     const totalAssists = players.reduce((sum, p) => sum + (Number(p.assists) || 0), 0);
@@ -632,8 +676,9 @@ export function FootballProvider({ children }) {
 
     const defaultLeader = players.find(p => p.name.toLowerCase().includes('sanoqulov')) || players[0] || null;
 
-    const topScorer = hasAnyGoals ? (goalsRankings[0] || defaultLeader) : defaultLeader;
-    const topAssister = hasAnyAssists ? (assistsRankings[0] || defaultLeader) : defaultLeader;
+    // Derived from allGoalsRankings and allAssistsRankings so search queries never distort topScorer and topAssister!
+    const topScorer = hasAnyGoals ? (allGoalsRankings[0] || defaultLeader) : defaultLeader;
+    const topAssister = hasAnyAssists ? (allAssistsRankings[0] || defaultLeader) : defaultLeader;
 
     return {
       totalGoals,
@@ -645,10 +690,15 @@ export function FootballProvider({ children }) {
       topScorer,
       topAssister
     };
-  }, [players, goalsRankings, assistsRankings]);
+  }, [players, allGoalsRankings, allAssistsRankings]);
 
   // CRUD for Players with Supabase Realtime Sync
   const addPlayer = (newPlayerData) => {
+    if (!isAdmin) {
+      showToast("Faqat admin yangi futbolchi qo‘shishi mumkin!", 'error');
+      return null;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     const newPlayer = {
       ...newPlayerData,
@@ -674,6 +724,11 @@ export function FootballProvider({ children }) {
   };
 
   const updatePlayer = (id, updatedData) => {
+    if (!isAdmin) {
+      showToast("Faqat admin futbolchini tahrirlashi mumkin!", 'error');
+      return;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     let updatedPlayerObj = null;
     setPlayers(prev => {
@@ -701,18 +756,14 @@ export function FootballProvider({ children }) {
     }
 
     showToast(`Futbolchi ma'lumotlari yangilandi!`);
-    if (selectedPlayer && selectedPlayer.id === id) {
-      setSelectedPlayer(prev => ({
-        ...prev,
-        ...updatedData,
-        goals: Number(updatedData.goals !== undefined ? updatedData.goals : prev.goals) || 0,
-        assists: Number(updatedData.assists !== undefined ? updatedData.assists : prev.assists) || 0,
-        matches: Number(updatedData.matches !== undefined ? updatedData.matches : prev.matches) || 0
-      }));
-    }
   };
 
   const deletePlayer = (id) => {
+    if (!isAdmin) {
+      showToast("Faqat admin futbolchini o‘chira oladi!", 'error');
+      return;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     const playerToDelete = players.find(p => p.id === id);
     setPlayers(prev => {
@@ -725,14 +776,19 @@ export function FootballProvider({ children }) {
       deleteRemotePlayer(id);
     }
 
-    if (selectedPlayer && selectedPlayer.id === id) {
-      setSelectedPlayer(null);
+    if (selectedPlayerId === id) {
+      setSelectedPlayerId(null);
     }
     showToast(`"${playerToDelete?.name || "O‘yinchi"}" o‘chirildi`, 'info');
   };
 
   // Reset to default data
   const resetToDefaults = () => {
+    if (!isAdmin) {
+      showToast("Faqat admin ma'lumotlarni qaytarishi mumkin!", 'error');
+      return;
+    }
+
     lastLocalEditTimeRef.current = Date.now();
     const zeroed = INITIAL_PLAYERS.map(p => ({
       ...p,
@@ -801,7 +857,6 @@ export function FootballProvider({ children }) {
         // Cloud Database Sync
         cloudSyncStatus,
         refreshFromCloud,
-        triggerCloudSave,
 
         // Modals & Active items
         selectedPlayer,
@@ -831,9 +886,12 @@ export function FootballProvider({ children }) {
         updatePlayer,
         deletePlayer,
         updateTeamInfo: (info) => {
+          if (!isAdmin) {
+            showToast("Faqat admin jamoa ma'lumotlarini o‘zgartirishi mumkin!", 'error');
+            return;
+          }
           lastLocalEditTimeRef.current = Date.now();
           setTeamInfo(info);
-          triggerCloudSave(players, info);
           showToast("Jamoa ma'lumotlari saqlandi!");
         },
         resetToDefaults

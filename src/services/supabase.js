@@ -68,9 +68,27 @@ export function playerToRow(player) {
   };
 }
 
+// Test if Supabase is reachable and players table exists
+export async function testSupabaseConnection() {
+  if (!isSupabaseConfigured || !supabase) {
+    return { ok: false, message: 'Supabase URL yoki Anon Key kiritilmagan (.env fayli kerak)' };
+  }
+  try {
+    const { data, error } = await supabase.from('players').select('id').limit(1);
+    if (error) {
+      return { ok: false, message: error.message };
+    }
+    return { ok: true, message: 'Supabase bilan ulanish muvaffaqiyatli!' };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
+}
+
 // Fetch all players from Supabase
 export async function fetchRemotePlayers() {
-  if (!supabase) return null;
+  if (!isSupabaseConfigured || !supabase) {
+    return { data: null, error: 'Supabase client not configured' };
+  }
   try {
     const { data, error } = await supabase
       .from('players')
@@ -79,16 +97,14 @@ export async function fetchRemotePlayers() {
 
     if (error) {
       console.warn('Supabase fetchRemotePlayers error:', error.message);
-      return null;
+      return { data: null, error: error.message };
     }
 
-    if (Array.isArray(data) && data.length > 0) {
-      return data.map(rowToPlayer);
-    }
-    return null;
+    const playerList = Array.isArray(data) ? data.map(rowToPlayer) : [];
+    return { data: playerList, error: null };
   } catch (err) {
     console.warn('Supabase fetchRemotePlayers exception:', err.message);
-    return null;
+    return { data: null, error: err.message };
   }
 }
 
