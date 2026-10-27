@@ -141,17 +141,21 @@ export default function Header() {
               <span className="relative flex h-2 w-2">
                 {cloudSyncStatus === 'syncing' ? (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                ) : cloudSyncStatus === 'synced' ? (
+                ) : cloudSyncStatus === 'connected' ? (
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 ) : null}
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${
                   cloudSyncStatus === 'syncing' ? 'bg-amber-400' :
-                  cloudSyncStatus === 'synced' ? 'bg-emerald-400' : 'bg-rose-500'
+                  cloudSyncStatus === 'connected' ? 'bg-emerald-400' :
+                  cloudSyncStatus === 'connecting' ? 'bg-cyan-400' :
+                  cloudSyncStatus === 'unconfigured' ? 'bg-amber-500' : 'bg-rose-500'
                 }`}></span>
               </span>
               <span className="hidden sm:inline font-mono text-[11px]">
                 {cloudSyncStatus === 'syncing' ? 'Sinxron...' :
-                 cloudSyncStatus === 'synced' ? 'Jonli Bulut' : 'Oflayn'}
+                 cloudSyncStatus === 'connected' ? 'Supabase Jonli' :
+                 cloudSyncStatus === 'connecting' ? 'Ulanmoqda...' :
+                 cloudSyncStatus === 'unconfigured' ? 'Supabase .env kutilmoqda' : 'Oflayn'}
               </span>
               <RefreshCw className={`w-3 h-3 text-slate-400 ${cloudSyncStatus === 'syncing' ? 'animate-spin text-amber-400' : ''}`} />
             </button>

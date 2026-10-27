@@ -161,15 +161,21 @@ export default function AdminModal() {
                 </span>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center gap-1 ${
                   cloudSyncStatus === 'syncing' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
-                  cloudSyncStatus === 'synced' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                  cloudSyncStatus === 'connected' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                  cloudSyncStatus === 'connecting' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' :
+                  cloudSyncStatus === 'unconfigured' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' :
                   'bg-rose-500/20 text-rose-300 border-rose-500/40'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${
                     cloudSyncStatus === 'syncing' ? 'bg-amber-400 animate-spin' :
-                    cloudSyncStatus === 'synced' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                    cloudSyncStatus === 'connected' ? 'bg-emerald-400 animate-pulse' :
+                    cloudSyncStatus === 'connecting' ? 'bg-cyan-400 animate-pulse' :
+                    cloudSyncStatus === 'unconfigured' ? 'bg-amber-400' : 'bg-rose-400'
                   }`}></span>
                   {cloudSyncStatus === 'syncing' ? 'Bulutga saqlanmoqda...' :
-                   cloudSyncStatus === 'synced' ? 'Jonli Bulut Ulangan' : 'Oflayn rejim'}
+                   cloudSyncStatus === 'connected' ? '🟢 Supabase Jonli (Ulangan)' :
+                   cloudSyncStatus === 'connecting' ? 'Ulanmoqda...' :
+                   cloudSyncStatus === 'unconfigured' ? '🟡 Supabase .env kutilmoqda' : 'Oflayn rejim'}
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
