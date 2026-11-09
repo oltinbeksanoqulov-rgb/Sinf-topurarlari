@@ -1,3 +1,5 @@
+import { PLAYER_PLAYSTYLES_DATA } from './playStylesData';
+
 export const INITIAL_SEASONS = [
   "Jami mavsum",
   "Bahor Kubogi 2025",
@@ -16,7 +18,7 @@ export const INITIAL_TEAM_INFO = {
   description: "Bizning 8-D sinf futbol jamoamiz maktab birinchiligida faol ishtirok etmoqda. Jamoamiz intizom, jipslik va halol o‘yin qoidalariga asoslanadi."
 };
 
-export const INITIAL_PLAYERS = [
+const RAW_PLAYERS = [
   {
     id: "p2",
     name: "Sanoqulov Oltinbek",
@@ -171,6 +173,17 @@ export const INITIAL_PLAYERS = [
     height: "176 sm"
   }
 ];
+
+export const INITIAL_PLAYERS = RAW_PLAYERS.map(p => {
+  const extra = PLAYER_PLAYSTYLES_DATA[p.id] || {};
+  return {
+    ...p,
+    playStyles: extra.playStyles || [],
+    diagram: extra.diagram || null,
+    topStyles: extra.topStyles || [],
+    summary: extra.summary || ''
+  };
+});
 
 export const PRESET_AVATARS = [
   "/players/sanoqulov-oltinbek.jpg",
