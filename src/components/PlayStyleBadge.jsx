@@ -25,22 +25,22 @@ export default function PlayStyleBadge({
   // Dimensions configuration
   const config = {
     sm: {
-      diamondSize: 'w-8 h-8',
-      iconSize: 'w-4 h-4',
-      textSize: 'text-[10px]',
-      containerWidth: 'w-16'
+      diamondSize: 'w-7 h-7 xs:w-8 xs:h-8',
+      iconSize: 'w-3.5 h-3.5 xs:w-4 xs:h-4',
+      textSize: 'text-[9px] xs:text-[10px]',
+      containerWidth: 'w-13 xs:w-16'
     },
     md: {
-      diamondSize: 'w-11 h-11 sm:w-12 sm:h-12',
-      iconSize: 'w-5 h-5 sm:w-6 sm:h-6',
-      textSize: 'text-[11px] sm:text-xs',
-      containerWidth: 'w-20 sm:w-22'
+      diamondSize: 'w-9 h-9 xs:w-11 xs:h-11 sm:w-12 sm:h-12',
+      iconSize: 'w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6',
+      textSize: 'text-[10px] xs:text-[11px] sm:text-xs',
+      containerWidth: 'w-16 xs:w-20 sm:w-22'
     },
     lg: {
-      diamondSize: 'w-14 h-14 sm:w-16 sm:h-16',
-      iconSize: 'w-7 h-7 sm:w-8 sm:h-8',
+      diamondSize: 'w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16',
+      iconSize: 'w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8',
       textSize: 'text-xs sm:text-sm',
-      containerWidth: 'w-24 sm:w-28'
+      containerWidth: 'w-20 xs:w-24 sm:w-28'
     }
   }[size] || config.md;
 
@@ -85,7 +85,7 @@ export default function PlayStyleBadge({
 
       {/* Interactive Floating Tooltip Popover */}
       {interactive && showTooltip && (
-        <div className="absolute bottom-full mb-3 z-50 w-52 p-3 rounded-2xl bg-slate-950/95 border border-emerald-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.9)] backdrop-blur-xl animate-in fade-in zoom-in-95 pointer-events-none">
+        <div className="absolute bottom-full mb-3 z-50 w-48 xs:w-52 left-1/2 -translate-x-1/2 p-2.5 xs:p-3 rounded-2xl bg-slate-950/95 border border-emerald-500/50 shadow-[0_10px_30px_rgba(0,0,0,0.9)] backdrop-blur-xl animate-in fade-in zoom-in-95 pointer-events-none max-w-[85vw]">
           <div className="flex items-center gap-1.5 mb-1">
             <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${data.categoryColor || 'from-emerald-400 to-green-500'}`} />
             <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">

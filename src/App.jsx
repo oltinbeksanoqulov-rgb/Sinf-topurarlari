@@ -5,6 +5,7 @@ import Hero from './components/Hero';
 import StatsOverview from './components/StatsOverview';
 import BestPlayers from './components/BestPlayers';
 import Leaderboard from './components/Leaderboard';
+import PlayStylesShowcase from './components/PlayStylesShowcase';
 import TacticalFormation from './components/TacticalFormation';
 import TeamSection from './components/TeamSection';
 import Footer from './components/Footer';
@@ -24,6 +25,7 @@ function MainAppLayout() {
         <Hero />
         <StatsOverview />
         <BestPlayers />
+        <PlayStylesShowcase />
         <Leaderboard />
         <TeamSection />
         <TacticalFormation />

@@ -107,6 +107,17 @@ export default function BestPlayers() {
                   </div>
                 </div>
 
+                {/* FC Mobile PlayStyles Indicator */}
+                <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs text-amber-400 font-bold group-hover:text-amber-300">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    PlayStyles & Diagrammani ko‘rish
+                  </span>
+                  <span className="text-[10px] font-mono uppercase bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/40">
+                    FC Mobile
+                  </span>
+                </div>
+
               </div>
             </div>
           </div>
@@ -177,6 +188,17 @@ export default function BestPlayers() {
                       {topAssister.matches} o‘yin / {topAssister.goals} gol
                     </div>
                   </div>
+                </div>
+
+                {/* FC Mobile PlayStyles Indicator */}
+                <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs text-emerald-400 font-bold group-hover:text-emerald-300">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    PlayStyles & Diagrammani ko‘rish
+                  </span>
+                  <span className="text-[10px] font-mono uppercase bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/40">
+                    FC Mobile
+                  </span>
                 </div>
 
               </div>

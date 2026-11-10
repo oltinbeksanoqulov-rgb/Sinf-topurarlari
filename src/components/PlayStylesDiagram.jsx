@@ -171,32 +171,32 @@ export default function PlayStylesDiagram({ playerInfo }) {
     : ['Dribling', 'Pass', 'Zarba'];
 
   return (
-    <div className="relative rounded-3xl bg-gradient-to-b from-[#060c18] via-[#040813] to-[#02050b] border border-emerald-500/30 p-4 sm:p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] overflow-hidden">
+    <div className="relative rounded-3xl bg-gradient-to-b from-[#060c18] via-[#040813] to-[#02050b] border border-emerald-500/30 p-2.5 sm:p-6 shadow-[0_0_40px_rgba(0,0,0,0.8)] overflow-hidden">
       
       {/* Background ambient lighting */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header bar matching EA SPORTS FC Mobile */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-800/80 gap-2">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-4 border-b border-slate-800/80 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {/* FC Mobile Brand Badge */}
-          <div className="px-2.5 py-1 rounded-lg bg-black/90 border border-slate-700 flex items-center gap-1.5 shadow-md">
-            <span className="text-[10px] font-black tracking-tighter text-white uppercase italic">
+          <div className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-black/90 border border-slate-700 flex items-center gap-1 shadow-md flex-shrink-0">
+            <span className="text-[9px] sm:text-[10px] font-black tracking-tighter text-white uppercase italic hidden xs:inline">
               EA SPORTS
             </span>
-            <span className="text-xs font-black tracking-tight text-white italic">
+            <span className="text-[10px] sm:text-xs font-black tracking-tight text-white italic">
               FC MOBILE
             </span>
           </div>
 
-          <h4 className="text-base sm:text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300">
+          <h4 className="text-xs sm:text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300 truncate min-w-0">
             PlayStyles Diagramma
           </h4>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-mono text-emerald-400 font-semibold">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] sm:text-[11px] font-mono text-emerald-400 font-semibold">
             <Sparkles className="w-3 h-3" />
             Hexagon Radar
           </span>
@@ -204,19 +204,19 @@ export default function PlayStylesDiagram({ playerInfo }) {
       </div>
 
       {/* Main Grid: Left (O'yin uslubi), Center (Hexagon Radar), Right (Natija) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-5 items-center">
         
         {/* ========================================================= */}
         {/* LEFT PANEL: O'yin uslubi (Top skills & Legend) */}
         {/* ========================================================= */}
-        <div className="lg:col-span-3 flex flex-col justify-between space-y-4 order-2 lg:order-1">
-          <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 shadow-xl backdrop-blur-md">
-            <h5 className="text-xs font-black uppercase tracking-wider text-white mb-3 flex items-center gap-1.5 font-mono">
+        <div className="lg:col-span-3 flex flex-col justify-between space-y-3 sm:space-y-4 order-2 lg:order-1">
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/70 border border-slate-800 shadow-xl backdrop-blur-md">
+            <h5 className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-white mb-2.5 flex items-center gap-1.5 font-mono">
               O‘yin uslubi
             </h5>
 
-            {/* 3 Skill Cards */}
-            <div className="grid grid-cols-3 lg:grid-cols-1 gap-2.5">
+            {/* 3 Skill Cards - Full row on mobile so never squished */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2">
               {topStylesList.slice(0, 3).map((styleName, idx) => {
                 // Find matching axis
                 const matchedAxis = axes.find(a => 
@@ -229,7 +229,7 @@ export default function PlayStylesDiagram({ playerInfo }) {
                 return (
                   <div
                     key={styleName}
-                    className={`p-2.5 rounded-xl border transition-all flex items-center gap-2.5 ${
+                    className={`p-2 sm:p-2.5 rounded-xl border transition-all flex items-center gap-2 sm:gap-2.5 ${
                       isStrong
                         ? 'bg-emerald-950/30 border-emerald-400 shadow-[0_0_12px_rgba(0,245,118,0.25)]'
                         : 'bg-slate-950/60 border-slate-700/70'
@@ -238,9 +238,9 @@ export default function PlayStylesDiagram({ playerInfo }) {
                     <div className={`p-1.5 rounded-lg flex-shrink-0 ${
                       isStrong ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-300'
                     }`}>
-                      {renderAxisIcon(matchedAxis.iconType, "w-4 h-4")}
+                      {renderAxisIcon(matchedAxis.iconType, "w-3.5 h-3.5 sm:w-4 sm:h-4")}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1 flex items-center justify-between sm:block">
                       <span className={`block text-xs font-black truncate ${
                         isStrong ? 'text-emerald-400' : 'text-slate-200'
                       }`}>
@@ -256,13 +256,13 @@ export default function PlayStylesDiagram({ playerInfo }) {
             </div>
 
             {/* Legend matching Image 4 */}
-            <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-[11px] font-medium text-slate-300">
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 space-y-1.5 text-[10px] sm:text-[11px] font-medium text-slate-300">
               <div className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded bg-emerald-400 shadow-[0_0_8px_rgba(0,245,118,0.6)] flex-shrink-0" />
+                <span className="w-3 h-3 rounded bg-emerald-400 shadow-[0_0_8px_rgba(0,245,118,0.6)] flex-shrink-0" />
                 <span className="truncate">Kuchli tomonlar</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded bg-slate-700 flex-shrink-0" />
+                <span className="w-3 h-3 rounded bg-slate-700 flex-shrink-0" />
                 <span className="truncate">O‘rtacha tomonlar</span>
               </div>
             </div>
@@ -273,7 +273,7 @@ export default function PlayStylesDiagram({ playerInfo }) {
         {/* CENTER PANEL: Hexagonal SVG Radar Chart */}
         {/* ========================================================= */}
         <div className="lg:col-span-6 flex flex-col items-center justify-center order-1 lg:order-2">
-          <div className="relative w-full max-w-[340px] sm:max-w-[370px] aspect-square flex items-center justify-center">
+          <div className="relative w-full max-w-[280px] xs:max-w-[320px] sm:max-w-[360px] aspect-square flex items-center justify-center mx-auto my-2">
             
             <svg 
               viewBox="0 0 340 320" 
@@ -360,73 +360,73 @@ export default function PlayStylesDiagram({ playerInfo }) {
               })}
             </svg>
 
-            {/* 5. HTML Outer Axis Labels (Exact positioning around hexagon) */}
+            {/* 5. HTML Outer Axis Labels (Strictly within container, no clipping) */}
             {/* Top: Zarba (12 o'clock) */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
               <div className="p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300">
-                {renderAxisIcon('goal', 'w-3.5 h-3.5')}
+                {renderAxisIcon('goal', 'w-3 h-3 sm:w-3.5 sm:h-3.5')}
               </div>
-              <span className="text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Zarba</span>
-              <span className="text-sm font-black text-emerald-400 font-mono leading-none">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Zarba</span>
+              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono leading-none">
                 {axes[0].value}
               </span>
             </div>
 
             {/* Top Right: Pass (2 o'clock) */}
-            <div className="absolute top-10 -right-2 sm:right-0 flex flex-col items-center pointer-events-none">
+            <div className="absolute top-8 right-0 sm:right-1 flex flex-col items-center pointer-events-none">
               <div className="p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300">
-                {renderAxisIcon('boot', 'w-3.5 h-3.5')}
+                {renderAxisIcon('boot', 'w-3 h-3 sm:w-3.5 sm:h-3.5')}
               </div>
-              <span className="text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Pass</span>
-              <span className="text-sm font-black text-emerald-400 font-mono leading-none">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Pass</span>
+              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono leading-none">
                 {axes[1].value}
               </span>
             </div>
 
             {/* Bottom Right: Dribling (4 o'clock) */}
-            <div className="absolute bottom-10 -right-2 sm:right-0 flex flex-col items-center pointer-events-none">
+            <div className="absolute bottom-8 right-0 sm:right-1 flex flex-col items-center pointer-events-none">
               <div className="p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300">
-                {renderAxisIcon('dribble', 'w-3.5 h-3.5')}
+                {renderAxisIcon('dribble', 'w-3 h-3 sm:w-3.5 sm:h-3.5')}
               </div>
-              <span className="text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Dribling</span>
-              <span className="text-sm font-black text-emerald-400 font-mono leading-none">
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Dribling</span>
+              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono leading-none">
                 {axes[2].value}
               </span>
             </div>
 
             {/* Bottom: Himoya (6 o'clock) */}
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-              <span className="text-sm font-black text-emerald-400 font-mono leading-none">
+              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono leading-none">
                 {axes[3].value}
               </span>
-              <span className="text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Himoya</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono">Himoya</span>
               <div className="p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300 mt-0.5">
-                {renderAxisIcon('shield', 'w-3.5 h-3.5')}
+                {renderAxisIcon('shield', 'w-3 h-3 sm:w-3.5 sm:h-3.5')}
               </div>
             </div>
 
             {/* Bottom Left: Jismoniy holat (8 o'clock) */}
-            <div className="absolute bottom-10 -left-2 sm:left-0 flex flex-col items-center pointer-events-none text-center">
+            <div className="absolute bottom-8 left-0 sm:left-1 flex flex-col items-center pointer-events-none text-center">
               <div className="p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300">
-                {renderAxisIcon('muscle', 'w-3.5 h-3.5')}
+                {renderAxisIcon('muscle', 'w-3 h-3 sm:w-3.5 sm:h-3.5')}
               </div>
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono max-w-[70px] truncate">
+              <span className="text-[9px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono max-w-[65px] sm:max-w-[70px] truncate">
                 Jismoniy
               </span>
-              <span className="text-sm font-black text-emerald-400 font-mono leading-none">
+              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono leading-none">
                 {axes[4].value}
               </span>
             </div>
 
             {/* Top Left: To'p nazorati (10 o'clock) */}
-            <div className="absolute top-10 -left-2 sm:left-0 flex flex-col items-center pointer-events-none text-center">
+            <div className="absolute top-8 left-0 sm:left-1 flex flex-col items-center pointer-events-none text-center">
               <div className="p-1 rounded bg-slate-900/90 border border-slate-700 text-slate-300">
-                {renderAxisIcon('ball', 'w-3.5 h-3.5')}
+                {renderAxisIcon('ball', 'w-3 h-3 sm:w-3.5 sm:h-3.5')}
               </div>
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono max-w-[75px] truncate">
+              <span className="text-[9px] sm:text-[11px] font-bold text-slate-200 mt-0.5 font-mono max-w-[68px] sm:max-w-[75px] truncate">
                 To‘p nazorati
               </span>
-              <span className="text-sm font-black text-emerald-400 font-mono leading-none">
+              <span className="text-xs sm:text-sm font-black text-emerald-400 font-mono leading-none">
                 {axes[5].value}
               </span>
             </div>
@@ -438,29 +438,28 @@ export default function PlayStylesDiagram({ playerInfo }) {
         {/* RIGHT PANEL: Natija (Results breakdown list) */}
         {/* ========================================================= */}
         <div className="lg:col-span-3 flex flex-col justify-between order-3">
-          <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 shadow-xl backdrop-blur-md">
-            <h5 className="text-xs font-black uppercase tracking-wider text-emerald-400 mb-3 flex items-center justify-between font-mono">
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/70 border border-slate-800 shadow-xl backdrop-blur-md">
+            <h5 className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-emerald-400 mb-2.5 flex items-center justify-between font-mono">
               <span>Natija</span>
               <span className="text-[10px] text-slate-400">Reyting</span>
             </h5>
 
-            {/* List of 6 Attributes with score numbers matching image */}
-            <div className="space-y-2">
-              {/* Order like in image 4: Pass, Dribling, Zarba, Himoya, Jismoniy holat, To'p nazorati */}
+            {/* List of 6 Attributes in 2-cols on mobile so it's super compact */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 sm:gap-2">
               {[axes[1], axes[2], axes[0], axes[3], axes[4], axes[5]].map((item) => (
                 <div 
                   key={item.id}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-emerald-500/40 transition-colors"
+                  className="flex items-center justify-between p-1.5 sm:p-2 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-emerald-500/40 transition-colors"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                     <span className="text-slate-400 flex-shrink-0">
-                      {renderAxisIcon(item.iconType, "w-4 h-4")}
+                      {renderAxisIcon(item.iconType, "w-3.5 h-3.5 sm:w-4 sm:h-4")}
                     </span>
-                    <span className="text-xs font-bold text-slate-200 truncate">
+                    <span className="text-[11px] sm:text-xs font-bold text-slate-200 truncate">
                       {item.label}
                     </span>
                   </div>
-                  <span className="font-mono font-black text-sm text-emerald-400">
+                  <span className="font-mono font-black text-xs sm:text-sm text-emerald-400 ml-1">
                     {item.value}
                   </span>
                 </div>
@@ -475,23 +474,23 @@ export default function PlayStylesDiagram({ playerInfo }) {
       {/* ========================================================= */}
       {/* BOTTOM BANNER: Xulosa box matching user Image 4 */}
       {/* ========================================================= */}
-      <div className="mt-5 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-[#07130c] to-slate-950/80 border-2 border-emerald-400/90 shadow-[0_0_20px_rgba(0,245,118,0.2)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 flex-shrink-0">
-            <Star className="w-5 h-5 fill-emerald-400 text-emerald-400" />
+      <div className="mt-3.5 sm:mt-5 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-[#07130c] to-slate-950/80 border-2 border-emerald-400/90 shadow-[0_0_20px_rgba(0,245,118,0.2)] flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <div className="p-1 sm:p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 flex-shrink-0">
+            <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-emerald-400 text-emerald-400" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 block font-mono">
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-400 block font-mono">
               Xulosa:
             </span>
-            <p className="text-xs sm:text-sm font-semibold text-white truncate">
+            <p className="text-xs sm:text-sm font-semibold text-white leading-snug break-words">
               {summary || `Sizning kuchli tomonlaringiz — ${topStylesList.slice(0, 2).join(' va ')}!`}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-end">
-          <span className="text-[10px] font-black italic tracking-wider uppercase text-emerald-400/80 font-mono whitespace-nowrap">
+        <div className="flex items-center justify-end flex-shrink-0">
+          <span className="text-[9px] sm:text-[10px] font-black italic tracking-wider uppercase text-emerald-400/80 font-mono whitespace-nowrap hidden xs:inline">
             FC MOBILE PLAYSTYLES
           </span>
         </div>

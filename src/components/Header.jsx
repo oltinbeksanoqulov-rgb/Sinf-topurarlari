@@ -11,7 +11,8 @@ import {
   Users,
   Gamepad2,
   Cloud,
-  RefreshCw
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { useFootball } from '../context/FootballContext';
 
@@ -94,6 +95,13 @@ export default function Header() {
               className="px-3.5 py-2 text-sm font-medium text-slate-300 hover:text-white rounded-lg hover:bg-slate-800/60 transition-colors"
             >
               Bosh sahifa
+            </button>
+            <button
+              onClick={() => handleNavClick('playstyles-showcase')}
+              className="px-3.5 py-2 text-sm font-bold text-emerald-400 hover:text-white rounded-lg hover:bg-emerald-500/20 border border-emerald-500/30 transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <Zap className="w-3.5 h-3.5 fill-emerald-400" />
+              PlayStyles
             </button>
             <button
               onClick={() => handleNavClick('leaderboard', 'goals')}
@@ -255,6 +263,16 @@ export default function Header() {
                 className="flex items-center px-4 py-3 rounded-xl text-sm font-medium text-slate-200 hover:bg-slate-900 hover:text-white"
               >
                 Bosh sahifa
+              </button>
+              <button
+                onClick={() => handleNavClick('playstyles-showcase')}
+                className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20"
+              >
+                <span className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 fill-emerald-400" />
+                  PlayStyles & Diagramma
+                </span>
+                <span className="text-[10px] bg-emerald-400 text-black px-2 py-0.5 rounded-full font-black font-mono">YANGI</span>
               </button>
               <button
                 onClick={() => handleNavClick('leaderboard', 'goals')}
